@@ -109,8 +109,8 @@ python scraper.py [options]
 
 ## Potential Issues
 
-- Rejected connections due to rate limits, bot detection, etc. May need to increase wait time between scrapes or add user-agent randomization.
-*Note: Added user agent randomization per script run. Appears to correct some of the issue but still encountering limiting.*
+- ~~Rejected connections due to rate limits, bot detection, etc. May need to increase wait time between scrapes or add user-agent randomization.~~
+**Edit: Issues are internal to this codebase and not related to MotW. Currently troubleshooting this...**
 
 ## Flowchart
 

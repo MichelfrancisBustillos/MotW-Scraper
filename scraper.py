@@ -137,7 +137,6 @@ def scrape_library(dryrun, download_folder, fast_mode):
                 page += 1
                 # Rate limiting to avoid rejected connections
                 pretty_sleep(random.randint(10, 20), fast_mode)
-            browser.quit()
 
             # Download all found links using threading
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -150,6 +149,7 @@ def scrape_library(dryrun, download_folder, fast_mode):
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
 
+    browser.quit()
     return scrape_counters
 
 def parse_arguments():
