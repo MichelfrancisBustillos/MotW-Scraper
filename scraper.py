@@ -1,6 +1,8 @@
 """Scrape the Memory of the World Library for books and download them."""
 import os
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -8,10 +10,11 @@ import requests
 from requests.exceptions import RequestException
 
 # Configure logging to output to a file and the terminal
+log_filename = datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log")
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[
-                        logging.FileHandler("scraper.log"),
+                        logging.FileHandler(log_filename),
                         logging.StreamHandler()
 ])
 
@@ -49,7 +52,9 @@ def scrape_library():
         # Initialize the Chrome browser
         with webdriver.Chrome(options=options) as browser:
             page = 1
+            links_to_download = []
             while True:
+                # Load the page
                 browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
                 html = browser.page_source
                 soup = BeautifulSoup(html, features="html.parser")
@@ -60,14 +65,17 @@ def scrape_library():
                     # Check if the link is a book link
                     if "//nikomas.memoryoftheworld.org/" in clean_link:
                         clean_link = "https:" + clean_link.replace(" ", "%20")
-                        logging.info("Downloading %s", clean_link)
-                        # Download the book
-                        download_doc(clean_link)
+                        logging.info("Found %s", clean_link)
+                        links_to_download.append(clean_link)
                         links_found = True
                 if not links_found:
                     break
                 page += 1
             browser.quit()
+
+            # Download all found links using threading
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                executor.map(download_doc, links_to_download)
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
 
