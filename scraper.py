@@ -62,7 +62,10 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
 
-    with open(os.path.join(download_folder, "downloaded_books.txt"), "a", encoding='utf-8') as f:
+    # Append timestamp to downloaded_books.txt filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    downloaded_books_file = os.path.join(download_folder, f"downloaded_books_{timestamp}.txt")
+    with open(downloaded_books_file, "a", encoding='utf-8') as f:
         f.write(filename.split(".")[0] + "\n")
 
     # Skip the download if it's a dry run
@@ -106,7 +109,7 @@ def load_and_find_links(browser, page, links_to_download, scrape_counters, expor
     """Load a page and find book links."""
     file_types = [
         "pdf", "epub", "mobi", "azw3", "djvu", "txt", "rtf", "fb2", "doc", "docx", "odt",
-        "html", "htm", "xhtml", "xml", "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
+        "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
         "cbz", "cbr", "cbt", "cba", "cb7", "lit", "pdb", "prc", "azw", "azw1", "azw4",
         "azw6", "azw8", "kf8", "kfx", "ibook", "ibooks", "opf"
     ]
