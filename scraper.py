@@ -12,18 +12,26 @@ from selenium.common.exceptions import WebDriverException
 import requests
 from requests.exceptions import RequestException
 from fake_useragent import UserAgent
+from tqdm import tqdm
 
-def configure_logging():
-    """Configure logging to output to a file and the terminal."""
+def pretty_sleep(seconds, fast_mode):
+    """Sleep for the input amount of time with a progress bar, unless fast mode is enabled."""
+    if fast_mode:
+        return
+    for _i in tqdm(range(seconds), desc="Cooldown", unit="s", unit_scale=True):
+        time.sleep(1)
+
+def configure_logging(silent_mode):
+    """Configure logging to output to a file and optionally to the terminal."""
     log_filename = datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log")
+    handlers = [logging.FileHandler(log_filename)]
+    if not silent_mode:
+        handlers.append(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s',
-                        handlers=[
-                            logging.FileHandler(log_filename),
-                            logging.StreamHandler()
-    ])
+                        handlers=handlers)
 
-def download_book(source_link, dryrun, scrape_counters, download_folder):
+def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mode):
     """Download the book from the source link."""
     if dryrun:
         logging.info("Dry run, Skipping %s", source_link)
@@ -39,7 +47,12 @@ def download_book(source_link, dryrun, scrape_counters, download_folder):
 
     try:
         # Send a GET request to download the file
-        r = requests.get(source_link, stream=True, timeout=10)
+        try:
+            r = requests.get(source_link, stream=True, timeout=10)
+        except WebDriverException as e:
+            logging.error("Connection rejected. %s", str(e))
+            logging.info("Cooldown for 1 minute due to connection rejection.")
+            pretty_sleep(60, fast_mode)
         r.raise_for_status()
         # Write the content to a file in chunks
         with open(file_path, 'wb') as f:
@@ -54,7 +67,7 @@ def download_book(source_link, dryrun, scrape_counters, download_folder):
         logging.error("Error downloading %s - %s", source_link, str(e))
         scrape_counters['error_count'] += 1
 
-def scrape_library(dryrun, download_folder):
+def scrape_library(dryrun, download_folder, fast_mode):
     """Scrape the Memory of the World Library for books."""
     scrape_counters = {
         'total_books_found': 0,
@@ -77,7 +90,13 @@ def scrape_library(dryrun, download_folder):
                 # Log the current page number being scraped
                 logging.info("Scraping page %d", page)
                 # Load the page
-                browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
+                try:
+                    browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
+                except WebDriverException as e:
+                    logging.error("Connection rejected on page %d - %s", page, str(e))
+                    logging.info("Cooldown for 1 minute due to connection rejection.")
+                    pretty_sleep(60, fast_mode)
+                    continue
                 html = browser.page_source
                 soup = BeautifulSoup(html, features="html.parser")
                 links_found = False
@@ -91,10 +110,11 @@ def scrape_library(dryrun, download_folder):
                         links_to_download.append(clean_link)
                         links_found = True
                 if not links_found:
+                    logging.info("No more links found on page %d. Exiting...", page)
                     break
                 page += 1
                 # Rate limiting to avoid rejected connections
-                time.sleep(random.randint(1, 5))
+                pretty_sleep(random.randint(10, 20), fast_mode)
             browser.quit()
 
             scrape_counters['total_books_found'] = len(links_to_download)
@@ -104,7 +124,8 @@ def scrape_library(dryrun, download_folder):
                 executor.map(lambda link: download_book(link,
                                                         dryrun,
                                                         scrape_counters,
-                                                        download_folder),
+                                                        download_folder,
+                                                        fast_mode),
                              links_to_download)
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
@@ -122,15 +143,21 @@ if __name__ == "__main__":
                         type=str,
                         default='books',
                         help="Folder path to download books to.")
+    parser.add_argument('--fast',
+                        action='store_true',
+                        help="Disable all cooldowns for faster scraping.")
+    parser.add_argument('--silent',
+                        action='store_true',
+                        help="Disable logging output to the terminal.")
     args = parser.parse_args()
 
     if '--help' not in args:
-        configure_logging()
+        configure_logging(silent_mode=args.silent)
 
     if args.dryrun:
         logging.info("Running in dry run mode. No files will be downloaded.")
 
-    counters = scrape_library(dryrun=args.dryrun, download_folder=args.path)
+    counters = scrape_library(dryrun=args.dryrun, download_folder=args.path, fast_mode=args.fast)
 
     # Log summary
     logging.info("Total books found: %d", counters['total_books_found'])

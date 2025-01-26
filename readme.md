@@ -48,6 +48,8 @@ python scraper.py [options]
 
 - `--dryrun`: Get all download links but do not download the files.
 - `--path <folder>`: Specify the folder path to download books to (default is `books`).
+- `--fast`: Disable all cooldowns for faster scraping.
+- `--silent`: Disable logging output to the terminal.
 
 ### Examples
 
@@ -67,6 +69,18 @@ python scraper.py [options]
 
     ```sh
     python scraper.py --dryrun
+    ```
+
+4. Run in fast mode to disable all cooldowns:
+
+    ```sh
+    python scraper.py --fast
+    ```
+
+5. Run in silent mode to disable logging output to the terminal:
+
+    ```sh
+    python scraper.py --silent
     ```
 
 ## To Do
