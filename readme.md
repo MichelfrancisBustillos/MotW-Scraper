@@ -53,6 +53,7 @@ python scraper.py [options]
 - `--silent` or `-s`: Disable logging output to the terminal.
 - `--verbose` or `-v`: Increase verbosity level (can be used multiple times).
 - `--pages <number>` or `-pg <number>`: Specify the number of pages to scrape.
+- `--export_html`: Enable saving of page source HTML.
 
 ### Verbosity Levels
 
@@ -106,6 +107,12 @@ python scraper.py [options]
     python scraper.py --pages 5
     ```
 
+8. Enable saving of page source HTML:
+
+    ```sh
+    python scraper.py --export_html
+    ```
+
 ## Flowchart
 
 ```mermaid
@@ -130,6 +137,7 @@ graph TD
         E6[Rate Limiting]
         E7{Links Found?}
         E8[Retry Logic]
+        E9{Export HTML?}
         E1 --> E2
         E2 --> E3
         E3 --> E4
@@ -139,6 +147,8 @@ graph TD
         E7 -- No --> E8
         E7 -- Yes --> F
         E8 --> E2
+        E9 -- Yes --> E10[Save HTML]
+        E9 -- No --> E7
     end
 
     subgraph Download Books
@@ -162,6 +172,8 @@ graph TD
 - [X] Add exception handling for requests and webdriver
 - [X] Replace print with logging
 - [X] Add multi-theading to download multiple files at once
+- [ ] Add clean program exit (current displays errors when killing with Ctrl+C)
+- [ ] Cleanup found links before sending them for download
 
 ## Potential Issues
 

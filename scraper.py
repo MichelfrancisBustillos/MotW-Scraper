@@ -22,7 +22,10 @@ def pretty_sleep(seconds, fast_mode):
 
 def configure_logging(silent_mode, verbosity):
     """Configure logging to output to a file and optionally to the terminal."""
-    log_filename = datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log")
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_filename = os.path.join(log_dir, datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log"))
     file_handler = logging.FileHandler(log_filename, encoding='utf-8')
     handlers = [file_handler]
 
@@ -84,8 +87,24 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
         logging.error("Error downloading %s - %s", source_link, str(e))
         scrape_counters['error_count'] += 1
 
-def load_and_find_links(browser, page, links_to_download, scrape_counters):
+def save_page_source(html, page):
+    """Save the HTML of the page to a file in the 'source' directory."""
+    source_dir = "source"
+    if not os.path.exists(source_dir):
+        os.makedirs(source_dir)
+    file_path = os.path.join(source_dir, f"page_{page}.html")
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    logging.info("Saved page %d HTML to %s", page, file_path)
+
+def load_and_find_links(browser, page, links_to_download, scrape_counters, export_html):
     """Load a page and find book links."""
+    file_types = [
+        "pdf", "epub", "mobi", "azw3", "djvu", "txt", "rtf", "fb2", "doc", "docx", "odt", "html",
+        "htm", "xhtml", "xml", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "cbz", "cbr", "cbt",
+        "cba", "cb7", "lit", "pdb", "prc", "azw", "azw1", "azw4", "azw6", "azw8", "kf8", "kfx",
+        "ibook", "ibooks", "opf"
+    ]
     try:
         browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
         logging.info("Page %d loaded successfully.", page)
@@ -94,13 +113,15 @@ def load_and_find_links(browser, page, links_to_download, scrape_counters):
         return False
 
     html = browser.page_source
+    if export_html:
+        save_page_source(html, page)
     logging.info("Parsing page %d", page)
     soup = BeautifulSoup(html, features="html.parser")
     logging.info("Finding links on page %d", page)
     links_found = False
     for link in soup.find_all('a'):
         clean_link = link.get('href')
-        if "//nikomas.memoryoftheworld.org/" in clean_link:
+        if any(ext in clean_link for ext in file_types):
             clean_link = "https:" + clean_link.replace(" ", "%20")
             logging.info("Found %s", clean_link)
             links_to_download.append(clean_link)
@@ -108,7 +129,7 @@ def load_and_find_links(browser, page, links_to_download, scrape_counters):
             scrape_counters['total_books_found'] = len(links_to_download)
     return links_found
 
-def scrape_library(dryrun, download_folder, fast_mode, pages):
+def scrape_library(dryrun, download_folder, fast_mode, pages, export_html):
     """Scrape the Memory of the World Library for books."""
     scrape_counters = {
         'total_books_found': 0,
@@ -139,14 +160,15 @@ def scrape_library(dryrun, download_folder, fast_mode, pages):
                     links_found = load_and_find_links(browser,
                                                       page,
                                                       links_to_download,
-                                                      scrape_counters)
+                                                      scrape_counters,
+                                                      export_html)
                     if not links_found:
                         retry += 1
                         logging.info("Retrying page %d (%d/3)", page, retry)
                 if not pages and not links_found:
                     logging.info("No links found on page %d. Exiting...", page)
                     break
-                elif page == pages:
+                if page == pages:
                     logging.info("Scraped %d pages.", pages)
                     break
                 page += 1
@@ -191,6 +213,9 @@ def parse_arguments():
     parser.add_argument('--pages', '-pg',
                         type=int,
                         help="Number of pages to scrape.")
+    parser.add_argument('--export_html',
+                        action='store_true',
+                        help="Enable saving of page source HTML.")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -206,7 +231,8 @@ if __name__ == "__main__":
         counters = scrape_library(dryrun=args.dryrun,
                                   download_folder=args.path,
                                   fast_mode=args.fast,
-                                  pages=args.pages)
+                                  pages=args.pages,
+                                  export_html=args.export_html)
         # Log summary
         logging.info("Total books found: %d", counters['total_books_found'])
         logging.info("Total books downloaded: %d", counters['total_books_downloaded'])
