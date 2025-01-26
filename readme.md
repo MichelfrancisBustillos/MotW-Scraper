@@ -47,9 +47,16 @@ python scraper.py [options]
 ### Options
 
 - `--dryrun`: Get all download links but do not download the files.
-- `--path <folder>`: Specify the folder path to download books to (default is `books`).
-- `--fast`: Disable all cooldowns for faster scraping.
-- `--silent`: Disable logging output to the terminal.
+- `--path <folder>` or `-p <folder>`: Specify the folder path to download books to (default is `books`).
+- `--fast` or `-f`: Disable all cooldowns for faster scraping.
+- `--silent` or `-s`: Disable logging output to the terminal.
+- `--verbose` or `-v`: Increase verbosity level (can be used multiple times).
+
+### Verbosity Levels
+
+- No `-v`: Only errors are logged to the terminal.
+- `-v`: Info and errors are logged to the terminal.
+- `-vv` or more: Debug, info, and errors are logged to the terminal.
 
 ### Examples
 
@@ -81,6 +88,12 @@ python scraper.py [options]
 
     ```sh
     python scraper.py --silent
+    ```
+
+6. Run in verbose mode to enable detailed logging output to the terminal:
+
+    ```sh
+    python scraper.py --verbose
     ```
 
 ## To Do
