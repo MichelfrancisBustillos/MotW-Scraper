@@ -11,15 +11,17 @@ from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 import requests
 from requests.exceptions import RequestException
+from fake_useragent import UserAgent
 
-# Configure logging to output to a file and the terminal
-log_filename = datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log")
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    handlers=[
-                        logging.FileHandler(log_filename),
-                        logging.StreamHandler()
-])
+def configure_logging():
+    """Configure logging to output to a file and the terminal."""
+    log_filename = datetime.now().strftime("scraper_%Y%m%d_%H%M%S.log")
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=[
+                            logging.FileHandler(log_filename),
+                            logging.StreamHandler()
+    ])
 
 def download_book(source_link, dryrun, scrape_counters, download_folder):
     """Download the book from the source link."""
@@ -61,8 +63,11 @@ def scrape_library(dryrun, download_folder):
     }
 
     # Set up headless Chrome browser options
+    ua = UserAgent()
+    headers = {'User-Agent': ua.random}
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
+    options.add_argument("user-agent=" + headers['User-Agent'])
     try:
         # Initialize the Chrome browser
         with webdriver.Chrome(options=options) as browser:
@@ -118,6 +123,9 @@ if __name__ == "__main__":
                         default='books',
                         help="Folder path to download books to.")
     args = parser.parse_args()
+
+    if '--help' not in args:
+        configure_logging()
 
     if args.dryrun:
         logging.info("Running in dry run mode. No files will be downloaded.")
