@@ -4,7 +4,7 @@ import requests
 import os
 
 def download_doc(source_link):
-    filename = source_link.split("/")[-1].replace(" ", "_")
+    filename = source_link.split("/")[-1].replace("%20", " ")
     file_path = "books/" + filename
     
     if os.path.exists("books/"):
