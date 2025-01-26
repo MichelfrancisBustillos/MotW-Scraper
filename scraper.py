@@ -1,6 +1,9 @@
 """Scrape the Memory of the World Library for books and download them."""
 import os
 import logging
+import argparse
+import time
+import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -18,15 +21,19 @@ logging.basicConfig(level=logging.INFO,
                         logging.StreamHandler()
 ])
 
-def download_doc(source_link):
+def download_book(source_link, dryrun, scrape_counters, download_folder):
     """Download the book from the source link."""
+    if dryrun:
+        logging.info("Dry run, Skipping %s", source_link)
+        return
+
     # Extract the filename from the source link
     filename = source_link.split("/")[-1].replace("%20", " ")
-    file_path = os.path.join("books", filename)
+    file_path = os.path.join(download_folder, filename)
 
-    # Create the 'books' directory if it doesn't exist
-    if not os.path.exists("books/"):
-        os.makedirs("books/")
+    # Create the download folder if it doesn't exist
+    if not os.path.exists(download_folder):
+        os.makedirs(download_folder)
 
     try:
         # Send a GET request to download the file
@@ -40,11 +47,19 @@ def download_doc(source_link):
                     f.flush()
                     os.fsync(f.fileno())
         logging.info("Downloaded %s", source_link)
+        scrape_counters['total_books_downloaded'] += 1
     except RequestException as e:
         logging.error("Error downloading %s - %s", source_link, str(e))
+        scrape_counters['error_count'] += 1
 
-def scrape_library():
+def scrape_library(dryrun, download_folder):
     """Scrape the Memory of the World Library for books."""
+    scrape_counters = {
+        'total_books_found': 0,
+        'total_books_downloaded': 0,
+        'error_count': 0
+    }
+
     # Set up headless Chrome browser options
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -54,6 +69,8 @@ def scrape_library():
             page = 1
             links_to_download = []
             while True:
+                # Log the current page number being scraped
+                logging.info("Scraping page %d", page)
                 # Load the page
                 browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
                 html = browser.page_source
@@ -71,13 +88,43 @@ def scrape_library():
                 if not links_found:
                     break
                 page += 1
+                # Rate limiting to avoid rejected connections
+                time.sleep(random.randint(1, 5))
             browser.quit()
+
+            scrape_counters['total_books_found'] = len(links_to_download)
 
             # Download all found links using threading
             with ThreadPoolExecutor(max_workers=5) as executor:
-                executor.map(download_doc, links_to_download)
+                executor.map(lambda link: download_book(link,
+                                                        dryrun,
+                                                        scrape_counters,
+                                                        download_folder),
+                             links_to_download)
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
 
+    return scrape_counters
+
 if __name__ == "__main__":
-    scrape_library()
+    parser = argparse.ArgumentParser(
+        description="Scrape the Memory of the World Library for books and download them."
+    )
+    parser.add_argument('--dryrun',
+                        action='store_true',
+                        help="Get all download links but do not download the files.")
+    parser.add_argument('--path',
+                        type=str,
+                        default='books',
+                        help="Folder path to download books to.")
+    args = parser.parse_args()
+
+    if args.dryrun:
+        logging.info("Running in dry run mode. No files will be downloaded.")
+
+    counters = scrape_library(dryrun=args.dryrun, download_folder=args.path)
+
+    # Log summary
+    logging.info("Total books found: %d", counters['total_books_found'])
+    logging.info("Total books downloaded: %d", counters['total_books_downloaded'])
+    logging.info("Total errors: %d", counters['error_count'])
