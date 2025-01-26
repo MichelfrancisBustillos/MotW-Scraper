@@ -20,6 +20,7 @@ This script scrapes the Memory of the World Library for books and downloads them
 - `selenium==4.1.0`
 - `requests==2.26.0`
 - `fake-useragent==0.1.11`
+- `tqdm==4.62.3`
 
 ## Installation
 
@@ -54,9 +55,11 @@ python scraper.py [options]
 
 ### Verbosity Levels
 
-- No `-v`: Only errors are logged to the terminal.
-- `-v`: Info and errors are logged to the terminal.
-- `-vv` or more: Debug, info, and errors are logged to the terminal.
+- `--verbose` or `-v`: Increase verbosity level. Can be used multiple times to increase the level of detail in the logs.
+  - No `-v`: Only errors are logged to the terminal.
+  - `-v`: Info and errors are logged to the terminal.
+  - `-vv` or more: Debug, info, and errors are logged to the terminal.
+  - The log file will always include info level logs by default, and will include debug level logs if `-vv` or more is used.
 
 ### Examples
 
@@ -108,3 +111,51 @@ python scraper.py [options]
 
 - Rejected connections due to rate limits, bot detection, etc. May need to increase wait time between scrapes or add user-agent randomization.
 *Note: Added user agent randomization per script run. Appears to correct some of the issue but still encountering limiting.*
+
+## Flowchart
+
+Below is a flowchart of the scraper's logic:
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Parse Arguments]
+    B --> C{Dry Run?}
+    C -->|Yes| D[Log Dry Run Mode]
+    C -->|No| E[Configure Logging]
+    D --> F[Initialize Browser]
+    E --> F[Initialize Browser]
+    F --> G[Scrape Pages]
+    G --> H{Links Found?}
+    H -->|Yes| I[Download Links]
+    H -->|No| J[Exit Loop]
+    I --> G
+    J --> K[Log Summary]
+    K --> L[End]
+
+    subgraph Scrape Pages
+        G1[Set User Agent]
+        G2[Load Page]
+        G3[Parse HTML]
+        G4[Find Links]
+        G5[Add Links to List]
+        G6[Rate Limiting]
+        G1 --> G2
+        G2 --> G3
+        G3 --> G4
+        G4 --> G5
+        G5 --> G6
+    end
+
+    subgraph Download Links
+        I1[Check Dry Run]
+        I2[Create Download Folder]
+        I3[Send GET Request]
+        I4[Write to File]
+        I5[Log Download]
+        I1 -->|Yes| I5
+        I1 -->|No| I2
+        I2 --> I3
+        I3 --> I4
+        I4 --> I5
+    end
+```
