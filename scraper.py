@@ -7,8 +7,13 @@ from selenium.common.exceptions import WebDriverException
 import requests
 from requests.exceptions import RequestException
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging to output to a file and the terminal
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[
+                        logging.FileHandler("scraper.log"),
+                        logging.StreamHandler()
+])
 
 def download_doc(source_link):
     """Download the book from the source link."""
@@ -43,21 +48,25 @@ def scrape_library():
     try:
         # Initialize the Chrome browser
         with webdriver.Chrome(options=options) as browser:
-            # Loop through all pages of the library
-            for page in range(1, 3315): # pages = 3315
+            page = 1
+            while True:
                 browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
                 html = browser.page_source
                 soup = BeautifulSoup(html, features="html.parser")
+                links_found = False
                 # Find all links on the page
                 for link in soup.find_all('a'):
                     clean_link = link.get('href')
                     # Check if the link is a book link
                     if "//nikomas.memoryoftheworld.org/" in clean_link:
-                        clean_link = clean_link.replace(" ", "%20")
-                        clean_link = "https:" + clean_link
+                        clean_link = "https:" + clean_link.replace(" ", "%20")
                         logging.info("Downloading %s", clean_link)
                         # Download the book
                         download_doc(clean_link)
+                        links_found = True
+                if not links_found:
+                    break
+                page += 1
             browser.quit()
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
