@@ -53,9 +53,6 @@ def configure_logging(silent_mode, verbosity):
 
 def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mode):
     """Download the book from the source link."""
-    if dryrun:
-        logging.info("Dry run, Skipping %s", source_link)
-        return
 
     # Extract the filename from the source link
     filename = source_link.split("/")[-1].replace("%20", " ")
@@ -64,6 +61,14 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
     # Create the download folder if it doesn't exist
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
+
+    with open(os.path.join(download_folder, "downloaded_books.txt"), "a", encoding='utf-8') as f:
+        f.write(filename.split(".")[0] + "\n")
+
+    # Skip the download if it's a dry run
+    if dryrun:
+        logging.info("Dry run, Skipping %s", source_link)
+        return
 
     try:
         # Send a GET request to download the file
@@ -100,10 +105,10 @@ def save_page_source(html, page):
 def load_and_find_links(browser, page, links_to_download, scrape_counters, export_html):
     """Load a page and find book links."""
     file_types = [
-        "pdf", "epub", "mobi", "azw3", "djvu", "txt", "rtf", "fb2", "doc", "docx", "odt", "html",
-        "htm", "xhtml", "xml", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "cbz", "cbr", "cbt",
-        "cba", "cb7", "lit", "pdb", "prc", "azw", "azw1", "azw4", "azw6", "azw8", "kf8", "kfx",
-        "ibook", "ibooks", "opf"
+        "pdf", "epub", "mobi", "azw3", "djvu", "txt", "rtf", "fb2", "doc", "docx", "odt",
+        "html", "htm", "xhtml", "xml", "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
+        "cbz", "cbr", "cbt", "cba", "cb7", "lit", "pdb", "prc", "azw", "azw1", "azw4",
+        "azw6", "azw8", "kf8", "kfx", "ibook", "ibooks", "opf"
     ]
     try:
         browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
@@ -122,8 +127,8 @@ def load_and_find_links(browser, page, links_to_download, scrape_counters, expor
     for link in soup.find_all('a'):
         clean_link = link.get('href')
         if any(ext in clean_link for ext in file_types):
+            logging.info("Found %s", (clean_link.split("/")[-1]))
             clean_link = "https:" + clean_link.replace(" ", "%20")
-            logging.info("Found %s", clean_link)
             links_to_download.append(clean_link)
             links_found = True
             scrape_counters['total_books_found'] = len(links_to_download)
