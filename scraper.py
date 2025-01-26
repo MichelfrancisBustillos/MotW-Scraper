@@ -85,6 +85,30 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
         logging.error("Error downloading %s - %s", source_link, str(e))
         scrape_counters['error_count'] += 1
 
+def load_and_find_links(browser, page, links_to_download, scrape_counters):
+    """Load a page and find book links."""
+    try:
+        browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
+        logging.info("Page %d loaded successfully.", page)
+    except WebDriverException as e:
+        logging.error("Connection rejected on page %d - %s", page, str(e))
+        return False
+
+    html = browser.page_source
+    logging.info("Parsing page %d", page)
+    soup = BeautifulSoup(html, features="html.parser")
+    logging.info("Finding links on page %d", page)
+    links_found = False
+    for link in soup.find_all('a'):
+        clean_link = link.get('href')
+        if "//nikomas.memoryoftheworld.org/" in clean_link:
+            clean_link = "https:" + clean_link.replace(" ", "%20")
+            logging.info("Found %s", clean_link)
+            links_to_download.append(clean_link)
+            links_found = True
+            scrape_counters['total_books_found'] = len(links_to_download)
+    return links_found
+
 def scrape_library(dryrun, download_folder, fast_mode, pages):
     """Scrape the Memory of the World Library for books."""
     scrape_counters = {
@@ -110,35 +134,12 @@ def scrape_library(dryrun, download_folder, fast_mode, pages):
             while True:
                 # Log the current page number being scraped
                 logging.info("Scraping page %d", page)
-                # Load the page
-                try:
-                    browser.get(f"https://library.memoryoftheworld.org/#/books?page={page}")
-                    logging.info("Page loaded successfully.")
-                except WebDriverException as e:
-                    logging.error("Connection rejected on page %d - %s", page, str(e))
-                    logging.info("Cooldown for 1 minute due to connection rejection.")
-                    pretty_sleep(60, fast_mode)
-                    continue
-                html = browser.page_source
-                logging.info("Parsing page %d", page)
-                soup = BeautifulSoup(html, features="html.parser")
-                logging.info("Finding links on page %d", page)
-                links_found = False
-                # Find all links on the page
-                for link in soup.find_all('a'):
-                    clean_link = link.get('href')
-                    # Check if the link is a book link
-                    if "//nikomas.memoryoftheworld.org/" in clean_link:
-                        clean_link = "https:" + clean_link.replace(" ", "%20")
-                        logging.info("Found %s", clean_link)
-                        links_to_download.append(clean_link)
-                        links_found = True
-                        scrape_counters['total_books_found'] = len(links_to_download)
+                links_found = load_and_find_links(browser, page, links_to_download, scrape_counters)
                 if not pages and not links_found:
                     logging.info("No more links found on page %d. Exiting...", page)
                     break
                 elif page == pages:
-                    logging.info("Scraped %d pages. Exiting...", pages)
+                    logging.info("Scraped %d pages.", pages)
                     break
                 page += 1
                 # Rate limiting to avoid rejected connections
