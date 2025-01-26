@@ -62,14 +62,13 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
 
-    # Append timestamp to downloaded_books.txt filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    downloaded_books_file = os.path.join(download_folder, f"downloaded_books_{timestamp}.txt")
-    with open(downloaded_books_file, "a", encoding='utf-8') as f:
-        f.write(filename.split(".")[0] + "\n")
-
     # Skip the download if it's a dry run
     if dryrun:
+        # Append timestamp to downloaded_books.txt filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        downloaded_books_file = os.path.join(download_folder, f"downloaded_books_{timestamp}.txt")
+        with open(downloaded_books_file, "a", encoding='utf-8') as f:
+            f.write(filename.split(".")[0] + "\n")
         logging.info("Dry run, Skipping %s", source_link)
         return
 
