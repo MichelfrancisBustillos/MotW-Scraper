@@ -85,13 +85,16 @@ def download_book(source_link, dryrun, scrape_counters, download_folder, fast_mo
         logging.error("Error downloading %s - %s", source_link, str(e))
         scrape_counters['error_count'] += 1
 
-def scrape_library(dryrun, download_folder, fast_mode):
+def scrape_library(dryrun, download_folder, fast_mode, pages):
     """Scrape the Memory of the World Library for books."""
     scrape_counters = {
         'total_books_found': 0,
         'total_books_downloaded': 0,
         'error_count': 0
     }
+
+    if pages:
+        logging.info("Scraping %d pages.", pages)
 
     # Set up headless Chrome browser options
     ua = UserAgent()
@@ -131,8 +134,11 @@ def scrape_library(dryrun, download_folder, fast_mode):
                         links_to_download.append(clean_link)
                         links_found = True
                         scrape_counters['total_books_found'] = len(links_to_download)
-                if not links_found:
+                if not pages and not links_found:
                     logging.info("No more links found on page %d. Exiting...", page)
+                    break
+                elif page == pages:
+                    logging.info("Scraped %d pages. Exiting...", pages)
                     break
                 page += 1
                 # Rate limiting to avoid rejected connections
@@ -149,7 +155,6 @@ def scrape_library(dryrun, download_folder, fast_mode):
     except WebDriverException as e:
         logging.error("Error scraping the library - %s", str(e))
 
-    browser.quit()
     return scrape_counters
 
 def parse_arguments():
@@ -174,6 +179,9 @@ def parse_arguments():
                         action='count',
                         default=0,
                         help="Increase verbosity level (can be used multiple times).")
+    parser.add_argument('--pages', '-pg',
+                        type=int,
+                        help="Number of pages to scrape.")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -188,7 +196,8 @@ if __name__ == "__main__":
     try:
         counters = scrape_library(dryrun=args.dryrun,
                                   download_folder=args.path,
-                                  fast_mode=args.fast)
+                                  fast_mode=args.fast,
+                                  pages=args.pages)
         # Log summary
         logging.info("Total books found: %d", counters['total_books_found'])
         logging.info("Total books downloaded: %d", counters['total_books_downloaded'])

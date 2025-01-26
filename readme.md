@@ -52,6 +52,7 @@ python scraper.py [options]
 - `--fast` or `-f`: Disable all cooldowns for faster scraping.
 - `--silent` or `-s`: Disable logging output to the terminal.
 - `--verbose` or `-v`: Increase verbosity level (can be used multiple times).
+- `--pages <number>` or `-pg <number>`: Specify the number of pages to scrape.
 
 ### Verbosity Levels
 
@@ -99,6 +100,61 @@ python scraper.py [options]
     python scraper.py --verbose
     ```
 
+7. Scrape a specific number of pages:
+
+    ```sh
+    python scraper.py --pages 5
+    ```
+
+## Flowchart
+
+```mermaid
+graph TD
+    A[Start] --> B[Initialize Logger]
+    B --> C[Parse Arguments]
+    C --> D[Setup WebDriver]
+    D --> E[Scrape Book Links]
+    E --> F{Dry Run?}
+    F -- Yes --> G[Log Download Links]
+    F -- No --> H[Download Books]
+    H --> I[Multi-threaded Download]
+    I --> J[Handle Errors]
+    J --> K[End]
+
+    subgraph Scrape Book Links
+        E1[Set User Agent]
+        E2[Load Page]
+        E3[Parse HTML]
+        E4[Find Links]
+        E5[Add Links to List]
+        E6[Rate Limiting]
+        E7{Links Found?}
+        E8[Retry Logic]
+        E1 --> E2
+        E2 --> E3
+        E3 --> E4
+        E4 --> E5
+        E5 --> E6
+        E6 --> E7
+        E7 -- No --> E8
+        E7 -- Yes --> F
+        E8 --> E2
+    end
+
+    subgraph Download Books
+        H1[Check Dry Run]
+        H2[Create Download Folder]
+        H3[Send GET Request]
+        H4[Write to File]
+        H5[Log Download]
+        H1 -->|Yes| H5
+        H1 -->|No| H2
+        H2 --> H3
+        H3 --> H4
+        H4 --> H5
+    end
+```
+
 ## To Do
 
 - [X] Parse number of pages to avoid a fixed maximum.
@@ -111,51 +167,3 @@ python scraper.py [options]
 
 - ~~Rejected connections due to rate limits, bot detection, etc. May need to increase wait time between scrapes or add user-agent randomization.~~
 **Edit: Issues are internal to this codebase and not related to MotW. Currently troubleshooting this...**
-
-## Flowchart
-
-Below is a flowchart of the scraper's logic:
-
-```mermaid
-flowchart TD
-    A[Start] --> B[Parse Arguments]
-    B --> C{Dry Run?}
-    C -->|Yes| D[Log Dry Run Mode]
-    C -->|No| E[Configure Logging]
-    D --> F[Initialize Browser]
-    E --> F[Initialize Browser]
-    F --> G[Scrape Pages]
-    G --> H{Links Found?}
-    H -->|Yes| I[Download Links]
-    H -->|No| J[Exit Loop]
-    I --> G
-    J --> K[Log Summary]
-    K --> L[End]
-
-    subgraph Scrape Pages
-        G1[Set User Agent]
-        G2[Load Page]
-        G3[Parse HTML]
-        G4[Find Links]
-        G5[Add Links to List]
-        G6[Rate Limiting]
-        G1 --> G2
-        G2 --> G3
-        G3 --> G4
-        G4 --> G5
-        G5 --> G6
-    end
-
-    subgraph Download Links
-        I1[Check Dry Run]
-        I2[Create Download Folder]
-        I3[Send GET Request]
-        I4[Write to File]
-        I5[Log Download]
-        I1 -->|Yes| I5
-        I1 -->|No| I2
-        I2 --> I3
-        I3 --> I4
-        I4 --> I5
-    end
-```
