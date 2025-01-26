@@ -3,7 +3,6 @@ import os
 import logging
 import argparse
 import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -134,16 +133,25 @@ def scrape_library(dryrun, download_folder, fast_mode, pages):
             while True:
                 # Log the current page number being scraped
                 logging.info("Scraping page %d", page)
-                links_found = load_and_find_links(browser, page, links_to_download, scrape_counters)
+                links_found = False
+                retry = 0
+                while not links_found and retry < 3:
+                    links_found = load_and_find_links(browser,
+                                                      page,
+                                                      links_to_download,
+                                                      scrape_counters)
+                    if not links_found:
+                        retry += 1
+                        logging.info("Retrying page %d (%d/3)", page, retry)
                 if not pages and not links_found:
-                    logging.info("No more links found on page %d. Exiting...", page)
+                    logging.info("No links found on page %d. Exiting...", page)
                     break
                 elif page == pages:
                     logging.info("Scraped %d pages.", pages)
                     break
                 page += 1
                 # Rate limiting to avoid rejected connections
-                pretty_sleep(random.randint(10, 20), fast_mode)
+                pretty_sleep(30, fast_mode)
 
             # Download all found links using threading
             with ThreadPoolExecutor(max_workers=5) as executor:
